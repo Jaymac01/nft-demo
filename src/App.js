@@ -1,33 +1,56 @@
-import { ethers, Signer } from "ethers";
+import {  BigNumber } from "ethers";
 import { address, abi } from "./config/conf";
-import { useState, useEffect } from "react";
+import React ,{ useState, useEffect } from "react";
 // import axios from "axios";
+// import BigNumber from 'bignumber.js';
+import Web3 from "web3";
+import HDWalletProvider from "@truffle/hdwallet-provider";
 
 
 const App = () => {
+
+ 
   const [tokenMinted, setTokenMinted] = useState(false);
   let [blocktxn, setblockTxn] = useState(null);
   // let [fileUrl, setFileUrl] = useState();
-  // let [ID, setID] = useState(0);
+  let [ID, setID] = useState(0);
   // let [jsonCid, setJsonCid] = useState(null);
   let [currentAccount, setCurrentAccount] = useState(null);
   let [issuer, setIssuer] = useState(null);
   let [hash, sethash] = useState(null);
   let [ownerid, setOwnerID] = useState(null);
-  let ID;
   const { ethereum } = window;
-  const provider = new ethers.providers.Web3Provider(ethereum);
-  const signer = provider.getSigner();
+  // const provider = new ethers.providers.Web3Provider(ethereum);
+  // const signer = provider.getSigner();
   // console.log(signer,"signer method")
-  // const mnemonic = "crater cheap garden weasel bachelor orient situate wait model notable mixed poem";
-  // const private_key = "a18379437a7d05b763560fde85ab5f4b934bf857d9cd373da138d851720a4ccd";
-  const nftContract = new ethers.Contract(address, abi, signer);
+  const mnemonic = "crater cheap garden weasel bachelor orient situate wait model notable mixed poem";
+  const private_key = "a18379437a7d05b763560fde85ab5f4b934bf857d9cd373da138d851720a4ccd";
+  const minter = "0xAAb90E171429a132F38A9Dc53C9997c4a55885E5";
+  // const nftContract = new ethers.Contract(address, abi, signer);
   const to = "0xe2A4C1c196C9bEE3aC716f4243f616e922F7D60d";
   // const pinataApiKey = "4d37623cdbbfb91c7f0d";
   // const pinataSecretApiKey =
   //   "5043ec80f9de04cb311185b7026c84769225d2896e3a45e097a1c020d2f07251";
   // const url = `https://api.pinata.cloud/pinning/pinFileToIPFS`;
   // const jsonUrl = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+  const rpc = "https://matic-mumbai.chainstacklabs.com";
+  
+  
+
+  function getWeb3Provider() {
+    return new HDWalletProvider({
+      mnemonic: mnemonic,
+      providerOrUrl: rpc,
+    });
+  }
+  
+  const web3 = new Web3(rpc);
+  const contract = new web3.eth.Contract(
+        abi,
+        address
+      );
+  contract.setProvider(getWeb3Provider());
+
 
   const connectWalletHandler = async () => {
     const { ethereum } = window;
@@ -70,15 +93,21 @@ const App = () => {
   const minttokenHandler = async (address, dochash, issuehash) => {
     try {
       const { ethereum } = window;
+      
       if (ethereum) {
-        let txn = await nftContract.safeMint(address, dochash, issuehash);
-        await txn.wait();
+        let txn = await contract.methods.safeMint(address, dochash, issuehash).send({
+          from: minter,
+        });;
+        // await txn.wait();
         console.log(txn,"txn summary");
         
         setTokenMinted(true);
-        setblockTxn(txn.hash);
-      ID = tokenIDHandler(to);
+        setblockTxn(txn.transactionHash);
+       let ID = await tokenIDHandler(to);
+      //  await ID.wait();
+      
        console.log(ID,"token-Id21")
+       setID(ID);
         ownHandler(ID);
         dochandler(ID);
         ownerOf(ID);
@@ -94,25 +123,29 @@ const App = () => {
   };
 
   const tokenIDHandler = async (to) => {
-    let tokenId = await nftContract.gettokenID(to);
+    let tokenId = await contract.methods.gettokenID(to).call();
     console.log(tokenId,"token-ID");
     return tokenId;
  
   }; 
   const ownHandler = async (tokenId) => {
-    let owner = await nftContract.getIssuerID(tokenId);
+    let token =  BigNumber.from(tokenId);
+    let owner = await contract.methods.getIssuerID(token).call();
     setIssuer(owner);
     console.log(owner);
   };
 
   const dochandler = async (tokenId) => {
-    let doc = await nftContract.getdoc(tokenId);
+    let token =  BigNumber.from(tokenId);
+      console.log(token)
+    let doc = await contract.methods.getdoc(token).call();
     sethash(doc);
     console.log(doc);
   };
 
   const ownerOf = async (tokenId) => {
-    let id = await nftContract.Ownerof(tokenId);
+    let token =  BigNumber.from(tokenId);
+    let id = await contract.methods.Ownerof(token).call();
     setOwnerID(id);
     console.log(id);
   };
@@ -334,7 +367,7 @@ const App = () => {
               { blocktxn && <div className="   flex items-center justify-evenly p-12 ">
               {ID && <div>
                   <p>Token ID : {ID}</p>
-                </div>}
+               </div>}
                 {hash && <div>
                   <p>doc Hash : {hash}</p>
                 </div>}
